@@ -1,0 +1,1053 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Producción Semanal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #f0f7ff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .dashboard-card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        .table-header {
+            background-color: #2563eb;
+            color: white;
+            font-weight: 600;
+        }
+        input {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 6px;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+        .btn {
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .tab {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .tab.active {
+            border-bottom: 3px solid #2563eb;
+            color: #2563eb;
+            font-weight: 600;
+        }
+        .tab:hover:not(.active) {
+            border-bottom: 3px solid #93c5fd;
+            color: #3b82f6;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .day-cell {
+            min-width: 100px;
+        }
+        .chart-container {
+            position: relative;
+            height: 350px;
+            width: 100%;
+            margin: 20px 0;
+        }
+        .rate-label {
+            position: absolute;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .arrow-up {
+            color: #10b981;
+            margin-left: 4px;
+        }
+        .arrow-down {
+            color: #ef4444;
+            margin-left: 4px;
+        }
+        .trend-indicator {
+            display: inline-flex;
+            align-items: center;
+        }
+        .trend-value {
+            font-size: 10px;
+            margin-left: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Dashboard de Producción Semanal</h1>
+        
+        <!-- Tabs para las tres tablas -->
+        <div class="flex justify-center mb-6 border-b border-gray-200">
+            <div class="tab active px-6 py-3" data-tab="plan">Plan de Producción</div>
+            <div class="tab px-6 py-3" data-tab="actual">Producción Actual</div>
+            <div class="tab px-6 py-3" data-tab="adjusted">Rates Ajustados</div>
+        </div>
+        
+        <!-- Contenido de las tabs -->
+        <div class="dashboard-card p-6 mb-8">
+            <!-- Tab 1: Plan de Producción -->
+            <div id="planTab" class="tab-content">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Plan de Producción Semanal</h2>
+                    <button id="randomizePlan" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow">
+                        Generar Plan Aleatorio
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr>
+                                <th class="table-header px-4 py-3 text-left">Métrica</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Lunes</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Martes</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Miércoles</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Jueves</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Viernes</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Sábado</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Domingo</th>
+                                <th class="table-header px-4 py-3 text-center">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b">
+                                <td class="px-4 py-3 text-gray-700 font-medium">Rate por Hora (%)</td>
+                                <td class="px-4 py-3 text-center" id="planRate_0">95%</td>
+                                <td class="px-4 py-3 text-center" id="planRate_1">96%</td>
+                                <td class="px-4 py-3 text-center" id="planRate_2">94%</td>
+                                <td class="px-4 py-3 text-center" id="planRate_3">97%</td>
+                                <td class="px-4 py-3 text-center" id="planRate_4">95%</td>
+                                <td class="px-4 py-3 text-center" id="planRate_5">93%</td>
+                                <td class="px-4 py-3 text-center" id="planRate_6">98%</td>
+                                <td class="px-4 py-3 text-center font-semibold" id="planRateTotal">95.4%</td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="px-4 py-3 text-gray-700 font-medium">Horas Vendidas</td>
+                                <td class="px-4 py-3 text-center" id="planHoras_0">690</td>
+                                <td class="px-4 py-3 text-center" id="planHoras_1">695</td>
+                                <td class="px-4 py-3 text-center" id="planHoras_2">685</td>
+                                <td class="px-4 py-3 text-center" id="planHoras_3">700</td>
+                                <td class="px-4 py-3 text-center" id="planHoras_4">705</td>
+                                <td class="px-4 py-3 text-center" id="planHoras_5">680</td>
+                                <td class="px-4 py-3 text-center" id="planHoras_6">690</td>
+                                <td class="px-4 py-3 text-center font-semibold" id="planHorasTotal">4845</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 text-gray-700 font-medium">USD Semanal</td>
+                                <td class="px-4 py-3 text-center" id="planUSD_0">655.50</td>
+                                <td class="px-4 py-3 text-center" id="planUSD_1">667.20</td>
+                                <td class="px-4 py-3 text-center" id="planUSD_2">643.90</td>
+                                <td class="px-4 py-3 text-center" id="planUSD_3">679.00</td>
+                                <td class="px-4 py-3 text-center" id="planUSD_4">669.75</td>
+                                <td class="px-4 py-3 text-center" id="planUSD_5">632.40</td>
+                                <td class="px-4 py-3 text-center" id="planUSD_6">676.20</td>
+                                <td class="px-4 py-3 text-center font-semibold" id="planUSDTotal">4623.95</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="chart-container mt-8">
+                    <canvas id="planChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Tab 2: Producción Actual -->
+            <div id="actualTab" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Producción Actual Semanal</h2>
+                    <button id="clearActual" class="btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow">
+                        Limpiar Datos
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr>
+                                <th class="table-header px-4 py-3 text-left">Métrica</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Lunes</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Martes</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Miércoles</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Jueves</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Viernes</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Sábado</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Domingo</th>
+                                <th class="table-header px-4 py-3 text-center">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b">
+                                <td class="px-4 py-3 text-gray-700 font-medium">Rate por Hora (%)</td>
+                                <td class="px-4 py-3 text-center" id="actualRate_0">-</td>
+                                <td class="px-4 py-3 text-center" id="actualRate_1">-</td>
+                                <td class="px-4 py-3 text-center" id="actualRate_2">-</td>
+                                <td class="px-4 py-3 text-center" id="actualRate_3">-</td>
+                                <td class="px-4 py-3 text-center" id="actualRate_4">-</td>
+                                <td class="px-4 py-3 text-center" id="actualRate_5">-</td>
+                                <td class="px-4 py-3 text-center" id="actualRate_6">-</td>
+                                <td class="px-4 py-3 text-center font-semibold" id="actualRateTotal">-</td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="px-4 py-3 text-gray-700 font-medium">Horas Vendidas</td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" id="actualHoras_0" class="text-center" min="0" step="1">
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" id="actualHoras_1" class="text-center" min="0" step="1">
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" id="actualHoras_2" class="text-center" min="0" step="1">
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" id="actualHoras_3" class="text-center" min="0" step="1">
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" id="actualHoras_4" class="text-center" min="0" step="1">
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" id="actualHoras_5" class="text-center" min="0" step="1">
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" id="actualHoras_6" class="text-center" min="0" step="1">
+                                </td>
+                                <td class="px-4 py-3 text-center font-semibold" id="actualHorasTotal">0</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 text-gray-700 font-medium">USD Semanal</td>
+                                <td class="px-4 py-3 text-center" id="actualUSD_0">-</td>
+                                <td class="px-4 py-3 text-center" id="actualUSD_1">-</td>
+                                <td class="px-4 py-3 text-center" id="actualUSD_2">-</td>
+                                <td class="px-4 py-3 text-center" id="actualUSD_3">-</td>
+                                <td class="px-4 py-3 text-center" id="actualUSD_4">-</td>
+                                <td class="px-4 py-3 text-center" id="actualUSD_5">-</td>
+                                <td class="px-4 py-3 text-center" id="actualUSD_6">-</td>
+                                <td class="px-4 py-3 text-center font-semibold" id="actualUSDTotal">0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="chart-container mt-8">
+                    <canvas id="actualChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Tab 3: Rates Ajustados -->
+            <div id="adjustedTab" class="tab-content hidden">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">Rates Ajustados Semanal</h2>
+                
+                <div class="table-responsive">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr>
+                                <th class="table-header px-4 py-3 text-left">Métrica</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Lunes</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Martes</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Miércoles</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Jueves</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Viernes</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Sábado</th>
+                                <th class="table-header px-4 py-3 text-center day-cell">Domingo</th>
+                                <th class="table-header px-4 py-3 text-center">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b">
+                                <td class="px-4 py-3 text-gray-700 font-medium">Rate por Hora (%)</td>
+                                <td class="px-4 py-3 text-center" id="adjustedRate_0">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedRate_1">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedRate_2">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedRate_3">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedRate_4">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedRate_5">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedRate_6">-</td>
+                                <td class="px-4 py-3 text-center font-semibold" id="adjustedRateTotal">-</td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="px-4 py-3 text-gray-700 font-medium">Horas Vendidas</td>
+                                <td class="px-4 py-3 text-center" id="adjustedHoras_0">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedHoras_1">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedHoras_2">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedHoras_3">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedHoras_4">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedHoras_5">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedHoras_6">-</td>
+                                <td class="px-4 py-3 text-center font-semibold" id="adjustedHorasTotal">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 text-gray-700 font-medium">USD Semanal</td>
+                                <td class="px-4 py-3 text-center" id="adjustedUSD_0">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedUSD_1">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedUSD_2">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedUSD_3">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedUSD_4">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedUSD_5">-</td>
+                                <td class="px-4 py-3 text-center" id="adjustedUSD_6">-</td>
+                                <td class="px-4 py-3 text-center font-semibold" id="adjustedUSDTotal">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="chart-container mt-8">
+                    <canvas id="adjustedChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center">
+            <button id="resetBtn" class="btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
+                Reiniciar Todos los Datos
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+        let planData = {
+            rates: [95, 96, 94, 97, 95, 93, 98],
+            horas: [690, 695, 685, 700, 705, 680, 690],
+            usd: [655.50, 667.20, 643.90, 679.00, 669.75, 632.40, 676.20]
+        };
+        
+        let actualData = {
+            rates: [0, 0, 0, 0, 0, 0, 0],
+            horas: [0, 0, 0, 0, 0, 0, 0],
+            usd: [0, 0, 0, 0, 0, 0, 0]
+        };
+        
+        let adjustedData = {
+            rates: [0, 0, 0, 0, 0, 0, 0],
+            horas: [0, 0, 0, 0, 0, 0, 0],
+            usd: [0, 0, 0, 0, 0, 0, 0],
+            trends: [0, 0, 0, 0, 0, 0, 0] // Para almacenar la diferencia con el plan
+        };
+        
+        // Charts
+        let planChart, actualChart, adjustedChart;
+        
+        // Función para calcular USD
+        function calculateUSD(rate, horas) {
+            return (rate / 100 * horas).toFixed(2);
+        }
+        
+        // Función para calcular Rate
+        function calculateRate(usd, horas) {
+            if (horas === 0) return 0;
+            return ((usd / horas) * 100).toFixed(2);
+        }
+        
+        // Función para actualizar el plan
+        function updatePlanData() {
+            // Calcular totales
+            const totalHoras = planData.horas.reduce((sum, val) => sum + val, 0);
+            const totalUSD = planData.usd.reduce((sum, val) => sum + parseFloat(val), 0).toFixed(2);
+            const totalRate = (totalUSD / totalHoras * 100).toFixed(1);
+            
+            // Actualizar la tabla
+            for (let i = 0; i < 7; i++) {
+                document.getElementById(`planRate_${i}`).textContent = planData.rates[i] + '%';
+                document.getElementById(`planHoras_${i}`).textContent = planData.horas[i];
+                document.getElementById(`planUSD_${i}`).textContent = planData.usd[i];
+            }
+            
+            document.getElementById('planRateTotal').textContent = totalRate + '%';
+            document.getElementById('planHorasTotal').textContent = totalHoras;
+            document.getElementById('planUSDTotal').textContent = totalUSD;
+            
+            // Actualizar el gráfico
+            updatePlanChart();
+            
+            // Actualizar datos ajustados
+            calculateAdjusted();
+        }
+        
+        // Función para actualizar datos actuales
+        function updateActualData() {
+            // Recopilar datos de los inputs
+            for (let i = 0; i < 7; i++) {
+                const horasInput = document.getElementById(`actualHoras_${i}`);
+                
+                actualData.horas[i] = parseFloat(horasInput.value) || 0;
+                
+                // Usar el mismo rate del plan para calcular USD
+                if (actualData.horas[i] > 0) {
+                    actualData.rates[i] = planData.rates[i];
+                    actualData.usd[i] = parseFloat(calculateUSD(actualData.rates[i], actualData.horas[i]));
+                    
+                    document.getElementById(`actualRate_${i}`).textContent = actualData.rates[i] + '%';
+                    document.getElementById(`actualUSD_${i}`).textContent = actualData.usd[i];
+                } else {
+                    actualData.rates[i] = 0;
+                    actualData.usd[i] = 0;
+                    
+                    document.getElementById(`actualRate_${i}`).textContent = '-';
+                    document.getElementById(`actualUSD_${i}`).textContent = '-';
+                }
+            }
+            
+            // Calcular totales
+            const totalHoras = actualData.horas.reduce((sum, val) => sum + val, 0);
+            const totalUSD = actualData.usd.reduce((sum, val) => sum + val, 0).toFixed(2);
+            
+            document.getElementById('actualHorasTotal').textContent = totalHoras;
+            document.getElementById('actualUSDTotal').textContent = totalUSD;
+            
+            if (totalHoras > 0) {
+                const totalRate = (totalUSD / totalHoras * 100).toFixed(1);
+                document.getElementById('actualRateTotal').textContent = totalRate + '%';
+            } else {
+                document.getElementById('actualRateTotal').textContent = '-';
+            }
+            
+            // Actualizar el gráfico
+            updateActualChart();
+            
+            // Actualizar datos ajustados
+            calculateAdjusted();
+        }
+        
+        // Función para calcular ajustes
+        function calculateAdjusted() {
+            const hasActualData = actualData.horas.some(h => h > 0);
+            
+            if (hasActualData) {
+                // Para cada día, calcular los datos ajustados
+                for (let i = 0; i < 7; i++) {
+                    // Si hay datos actuales para este día, calcular el rate ajustado
+                    if (actualData.horas[i] > 0) {
+                        // Usar las horas actuales pero mantener el USD del plan
+                        adjustedData.horas[i] = actualData.horas[i];
+                        adjustedData.usd[i] = parseFloat(planData.usd[i]);
+                        
+                        // Calcular el rate necesario para mantener el USD del plan con las horas actuales
+                        adjustedData.rates[i] = parseFloat(calculateRate(adjustedData.usd[i], adjustedData.horas[i]));
+                        
+                        // Calcular la tendencia (diferencia con el plan)
+                        adjustedData.trends[i] = adjustedData.rates[i] - planData.rates[i];
+                        
+                        // Crear el indicador de tendencia con flecha
+                        let trendHTML = '';
+                        if (adjustedData.trends[i] > 0) {
+                            trendHTML = `<span class="trend-indicator">${adjustedData.rates[i]}%<span class="arrow-up">▲</span><span class="trend-value">${adjustedData.trends[i].toFixed(1)}</span></span>`;
+                        } else if (adjustedData.trends[i] < 0) {
+                            trendHTML = `<span class="trend-indicator">${adjustedData.rates[i]}%<span class="arrow-down">▼</span><span class="trend-value">${Math.abs(adjustedData.trends[i]).toFixed(1)}</span></span>`;
+                        } else {
+                            trendHTML = `${adjustedData.rates[i]}%<span class="trend-value">=</span>`;
+                        }
+                        
+                        document.getElementById(`adjustedRate_${i}`).innerHTML = trendHTML;
+                        document.getElementById(`adjustedHoras_${i}`).textContent = adjustedData.horas[i];
+                        document.getElementById(`adjustedUSD_${i}`).textContent = adjustedData.usd[i].toFixed(2);
+                    } else {
+                        // Para días sin datos actuales, mostrar guiones
+                        adjustedData.rates[i] = 0;
+                        adjustedData.horas[i] = 0;
+                        adjustedData.usd[i] = 0;
+                        adjustedData.trends[i] = 0;
+                        
+                        document.getElementById(`adjustedRate_${i}`).textContent = '-';
+                        document.getElementById(`adjustedHoras_${i}`).textContent = '-';
+                        document.getElementById(`adjustedUSD_${i}`).textContent = '-';
+                    }
+                }
+                
+                // Calcular totales para días con datos
+                let totalHoras = 0;
+                let totalUSD = 0;
+                let daysWithData = 0;
+                
+                for (let i = 0; i < 7; i++) {
+                    if (adjustedData.horas[i] > 0) {
+                        totalHoras += adjustedData.horas[i];
+                        totalUSD += adjustedData.usd[i];
+                        daysWithData++;
+                    }
+                }
+                
+                if (daysWithData > 0) {
+                    document.getElementById('adjustedHorasTotal').textContent = totalHoras;
+                    document.getElementById('adjustedUSDTotal').textContent = totalUSD.toFixed(2);
+                    
+                    const totalRate = (totalUSD / totalHoras * 100).toFixed(1);
+                    
+                    // Calcular la tendencia total
+                    const planTotalRate = parseFloat(document.getElementById('planRateTotal').textContent);
+                    const totalTrend = totalRate - planTotalRate;
+                    
+                    // Crear el indicador de tendencia con flecha para el total
+                    let totalTrendHTML = '';
+                    if (totalTrend > 0) {
+                        totalTrendHTML = `<span class="trend-indicator">${totalRate}%<span class="arrow-up">▲</span><span class="trend-value">${totalTrend.toFixed(1)}</span></span>`;
+                    } else if (totalTrend < 0) {
+                        totalTrendHTML = `<span class="trend-indicator">${totalRate}%<span class="arrow-down">▼</span><span class="trend-value">${Math.abs(totalTrend).toFixed(1)}</span></span>`;
+                    } else {
+                        totalTrendHTML = `${totalRate}%<span class="trend-value">=</span>`;
+                    }
+                    
+                    document.getElementById('adjustedRateTotal').innerHTML = totalTrendHTML;
+                } else {
+                    document.getElementById('adjustedRateTotal').textContent = '-';
+                    document.getElementById('adjustedHorasTotal').textContent = '-';
+                    document.getElementById('adjustedUSDTotal').textContent = '-';
+                }
+                
+                // Actualizar el gráfico
+                updateAdjustedChart();
+            } else {
+                // Si no hay datos actuales, mostrar guiones
+                for (let i = 0; i < 7; i++) {
+                    document.getElementById(`adjustedRate_${i}`).textContent = '-';
+                    document.getElementById(`adjustedHoras_${i}`).textContent = '-';
+                    document.getElementById(`adjustedUSD_${i}`).textContent = '-';
+                }
+                
+                document.getElementById('adjustedRateTotal').textContent = '-';
+                document.getElementById('adjustedHorasTotal').textContent = '-';
+                document.getElementById('adjustedUSDTotal').textContent = '-';
+                
+                // Actualizar el gráfico con datos vacíos
+                updateAdjustedChart();
+            }
+        }
+        
+        // Función para inicializar gráficos
+        function initCharts() {
+            // Configuración común para todos los gráficos
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#333',
+                        bodyColor: '#333',
+                        borderColor: '#ddd',
+                        borderWidth: 1,
+                        padding: 10,
+                        displayColors: true,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    if (context.dataset.label === 'Rate') {
+                                        label += context.parsed.y + '%';
+                                    } else {
+                                        label += context.parsed.y;
+                                    }
+                                }
+                                return label;
+                            }
+                        }
+                    },
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Horas',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        min: 0,
+                        max: 750,
+                        ticks: {
+                            stepSize: 150
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'USD',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        min: 0,
+                        max: 700,
+                        ticks: {
+                            stepSize: 100
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                }
+            };
+            
+            // Gráfico del Plan
+            const planCtx = document.getElementById('planChart').getContext('2d');
+            planChart = new Chart(planCtx, {
+                type: 'bar',
+                data: {
+                    labels: days,
+                    datasets: [
+                        {
+                            label: 'Horas',
+                            data: planData.horas,
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.6,
+                            categoryPercentage: 0.8,
+                            order: 2
+                        },
+                        {
+                            label: 'USD',
+                            data: planData.usd,
+                            type: 'line',
+                            borderColor: 'rgba(37, 99, 235, 1)',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: 'rgba(37, 99, 235, 1)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            yAxisID: 'y1',
+                            order: 1
+                        }
+                    ]
+                },
+                options: commonOptions
+            });
+            
+            // Gráfico Actual
+            const actualCtx = document.getElementById('actualChart').getContext('2d');
+            actualChart = new Chart(actualCtx, {
+                type: 'bar',
+                data: {
+                    labels: days,
+                    datasets: [
+                        {
+                            label: 'Horas',
+                            data: [0, 0, 0, 0, 0, 0, 0],
+                            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                            borderColor: 'rgba(239, 68, 68, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.6,
+                            categoryPercentage: 0.8,
+                            order: 2
+                        },
+                        {
+                            label: 'USD',
+                            data: [0, 0, 0, 0, 0, 0, 0],
+                            type: 'line',
+                            borderColor: 'rgba(220, 38, 38, 1)',
+                            backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: 'rgba(220, 38, 38, 1)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            yAxisID: 'y1',
+                            order: 1
+                        }
+                    ]
+                },
+                options: commonOptions
+            });
+            
+            // Gráfico Ajustado
+            const adjustedCtx = document.getElementById('adjustedChart').getContext('2d');
+            adjustedChart = new Chart(adjustedCtx, {
+                type: 'bar',
+                data: {
+                    labels: days,
+                    datasets: [
+                        {
+                            label: 'Horas',
+                            data: [0, 0, 0, 0, 0, 0, 0],
+                            backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.6,
+                            categoryPercentage: 0.8,
+                            order: 2
+                        },
+                        {
+                            label: 'USD',
+                            data: [0, 0, 0, 0, 0, 0, 0],
+                            type: 'line',
+                            borderColor: 'rgba(5, 150, 105, 1)',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: 'rgba(5, 150, 105, 1)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            yAxisID: 'y1',
+                            order: 1
+                        },
+                        {
+                            label: 'Rate Plan',
+                            data: planData.rates,
+                            type: 'line',
+                            borderColor: 'rgba(79, 70, 229, 1)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            hidden: true
+                        }
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    plugins: {
+                        ...commonOptions.plugins,
+                        tooltip: {
+                            ...commonOptions.plugins.tooltip,
+                            callbacks: {
+                                ...commonOptions.plugins.tooltip.callbacks,
+                                afterLabel: function(context) {
+                                    // Mostrar la diferencia con el plan en el tooltip
+                                    if (context.dataset.label === 'Horas' && adjustedData.trends[context.dataIndex] !== 0) {
+                                        const trend = adjustedData.trends[context.dataIndex];
+                                        if (trend > 0) {
+                                            return `Rate vs Plan: +${trend.toFixed(1)}%`;
+                                        } else {
+                                            return `Rate vs Plan: ${trend.toFixed(1)}%`;
+                                        }
+                                    }
+                                    return null;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Funciones para actualizar gráficos
+        function updatePlanChart() {
+            planChart.data.datasets[0].data = planData.horas;
+            planChart.data.datasets[1].data = planData.usd;
+            planChart.update();
+            
+            // Agregar etiquetas de porcentaje sobre las barras
+            setTimeout(() => {
+                addRateLabels('planChart', planData.rates, 'rgba(37, 99, 235, 1)');
+            }, 100);
+        }
+        
+        function updateActualChart() {
+            actualChart.data.datasets[0].data = actualData.horas;
+            actualChart.data.datasets[1].data = actualData.usd;
+            actualChart.update();
+            
+            // Agregar etiquetas de porcentaje sobre las barras
+            setTimeout(() => {
+                addRateLabels('actualChart', actualData.rates, 'rgba(220, 38, 38, 1)');
+            }, 100);
+        }
+        
+        function updateAdjustedChart() {
+            adjustedChart.data.datasets[0].data = adjustedData.horas;
+            adjustedChart.data.datasets[1].data = adjustedData.usd;
+            
+            // Actualizar la línea de referencia del plan
+            adjustedChart.data.datasets[2].data = planData.rates;
+            
+            adjustedChart.update();
+            
+            // Agregar etiquetas de porcentaje sobre las barras con indicadores de tendencia
+            setTimeout(() => {
+                addRateLabelsWithTrend('adjustedChart', adjustedData.rates, adjustedData.trends);
+            }, 100);
+        }
+        
+        // Función para agregar etiquetas de porcentaje sobre las barras
+        function addRateLabels(chartId, rates, color) {
+            const chartCanvas = document.getElementById(chartId);
+            const chart = Chart.getChart(chartCanvas);
+            
+            // Eliminar etiquetas anteriores
+            const existingLabels = document.querySelectorAll(`#${chartId}-container .rate-label`);
+            existingLabels.forEach(label => label.remove());
+            
+            // Crear contenedor para las etiquetas si no existe
+            let container = document.getElementById(`${chartId}-container`);
+            if (!container) {
+                container = document.createElement('div');
+                container.id = `${chartId}-container`;
+                container.style.position = 'relative';
+                chartCanvas.parentNode.insertBefore(container, chartCanvas);
+                container.appendChild(chartCanvas);
+            }
+            
+            // Agregar nuevas etiquetas
+            if (chart) {
+                const meta = chart.getDatasetMeta(0);
+                
+                for (let i = 0; i < rates.length; i++) {
+                    if (rates[i] > 0) {
+                        const element = meta.data[i];
+                        const position = element.getCenterPoint();
+                        
+                        const label = document.createElement('div');
+                        label.className = 'rate-label';
+                        label.textContent = rates[i] + '%';
+                        label.style.left = position.x + 'px';
+                        label.style.top = (position.y - 25) + 'px';
+                        label.style.color = color;
+                        label.style.transform = 'translateX(-50%)';
+                        
+                        container.appendChild(label);
+                    }
+                }
+            }
+        }
+        
+        // Función para agregar etiquetas con indicadores de tendencia
+        function addRateLabelsWithTrend(chartId, rates, trends) {
+            const chartCanvas = document.getElementById(chartId);
+            const chart = Chart.getChart(chartCanvas);
+            
+            // Eliminar etiquetas anteriores
+            const existingLabels = document.querySelectorAll(`#${chartId}-container .rate-label`);
+            existingLabels.forEach(label => label.remove());
+            
+            // Crear contenedor para las etiquetas si no existe
+            let container = document.getElementById(`${chartId}-container`);
+            if (!container) {
+                container = document.createElement('div');
+                container.id = `${chartId}-container`;
+                container.style.position = 'relative';
+                chartCanvas.parentNode.insertBefore(container, chartCanvas);
+                container.appendChild(chartCanvas);
+            }
+            
+            // Agregar nuevas etiquetas con indicadores de tendencia
+            if (chart) {
+                const meta = chart.getDatasetMeta(0);
+                
+                for (let i = 0; i < rates.length; i++) {
+                    if (rates[i] > 0) {
+                        const element = meta.data[i];
+                        const position = element.getCenterPoint();
+                        
+                        const label = document.createElement('div');
+                        label.className = 'rate-label';
+                        
+                        // Crear el contenido con el indicador de tendencia
+                        let labelContent = '';
+                        if (trends[i] > 0) {
+                            labelContent = `${rates[i]}% <span class="arrow-up">▲</span><span class="trend-value">${trends[i].toFixed(1)}</span>`;
+                        } else if (trends[i] < 0) {
+                            labelContent = `${rates[i]}% <span class="arrow-down">▼</span><span class="trend-value">${Math.abs(trends[i]).toFixed(1)}</span>`;
+                        } else {
+                            labelContent = `${rates[i]}% <span class="trend-value">=</span>`;
+                        }
+                        
+                        label.innerHTML = labelContent;
+                        label.style.left = position.x + 'px';
+                        label.style.top = (position.y - 25) + 'px';
+                        label.style.color = trends[i] > 0 ? '#10b981' : (trends[i] < 0 ? '#ef4444' : '#059669');
+                        label.style.transform = 'translateX(-50%)';
+                        
+                        container.appendChild(label);
+                    }
+                }
+            }
+        }
+        
+        // Función para generar plan aleatorio
+        function generateRandomPlan() {
+            for (let i = 0; i < 7; i++) {
+                // Rate entre 93% y 98%
+                planData.rates[i] = Math.floor(Math.random() * 6) + 93;
+                
+                // Horas entre 680 y 710
+                planData.horas[i] = Math.floor(Math.random() * 31) + 680;
+                
+                // USD calculado
+                planData.usd[i] = calculateUSD(planData.rates[i], planData.horas[i]);
+            }
+            
+            updatePlanData();
+        }
+        
+        // Función para limpiar datos actuales
+        function clearActualData() {
+            for (let i = 0; i < 7; i++) {
+                document.getElementById(`actualHoras_${i}`).value = '';
+                document.getElementById(`actualRate_${i}`).textContent = '-';
+                document.getElementById(`actualUSD_${i}`).textContent = '-';
+                
+                actualData.rates[i] = 0;
+                actualData.horas[i] = 0;
+                actualData.usd[i] = 0;
+            }
+            
+            document.getElementById('actualRateTotal').textContent = '-';
+            document.getElementById('actualHorasTotal').textContent = '0';
+            document.getElementById('actualUSDTotal').textContent = '0.00';
+            
+            updateActualChart();
+            calculateAdjusted();
+        }
+        
+        // Función para reiniciar todos los datos
+        function resetAllData() {
+            // Reiniciar plan a valores predeterminados
+            planData = {
+                rates: [95, 96, 94, 97, 95, 93, 98],
+                horas: [690, 695, 685, 700, 705, 680, 690],
+                usd: [655.50, 667.20, 643.90, 679.00, 669.75, 632.40, 676.20]
+            };
+            
+            updatePlanData();
+            clearActualData();
+        }
+        
+        // Función para cambiar tabs
+        function switchTab(tabName) {
+            // Ocultar todos los contenidos de tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // Mostrar el contenido de la tab seleccionada
+            document.getElementById(`${tabName}Tab`).classList.remove('hidden');
+            
+            // Actualizar clases activas
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
+            
+            // Actualizar gráficos después de cambiar de tab para asegurar el renderizado correcto
+            setTimeout(() => {
+                if (tabName === 'plan') {
+                    updatePlanChart();
+                } else if (tabName === 'actual') {
+                    updateActualChart();
+                } else if (tabName === 'adjusted') {
+                    updateAdjustedChart();
+                }
+            }, 50);
+        }
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar gráficos
+            initCharts();
+            updatePlanData();
+            
+            // Event listeners para tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    switchTab(this.dataset.tab);
+                });
+            });
+            
+            // Event listener para generar plan aleatorio
+            document.getElementById('randomizePlan').addEventListener('click', generateRandomPlan);
+            
+            // Event listener para limpiar datos actuales
+            document.getElementById('clearActual').addEventListener('click', clearActualData);
+            
+            // Event listener para reiniciar todos los datos
+            document.getElementById('resetBtn').addEventListener('click', resetAllData);
+            
+            // Event listeners para inputs de datos actuales
+            for (let i = 0; i < 7; i++) {
+                document.getElementById(`actualHoras_${i}`).addEventListener('input', updateActualData);
+            }
+            
+            // Asegurar que las etiquetas de porcentaje se muestren correctamente al inicio
+            setTimeout(() => {
+                addRateLabels('planChart', planData.rates, 'rgba(37, 99, 235, 1)');
+            }, 300);
+            
+            // Ajustar gráficos al cambiar el tamaño de la ventana
+            window.addEventListener('resize', function() {
+                setTimeout(() => {
+                    const activeTab = document.querySelector('.tab.active').dataset.tab;
+                    if (activeTab === 'plan') {
+                        updatePlanChart();
+                    } else if (activeTab === 'actual') {
+                        updateActualChart();
+                    } else if (activeTab === 'adjusted') {
+                        updateAdjustedChart();
+                    }
+                }, 100);
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'94ebe2fa36d3f947',t:'MTc0OTc1NzkyNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
