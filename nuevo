@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Dashboard Producción</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Mismos estilos que antes (omito por brevedad)... */
+  </style>
+</head>
+<body>
+  <!-- Estructura HTML permanece igual, con IDs correspondientes -->
+  <!-- ... --- elimina repetición por brevedad ... -->
+  <div class="container mx-auto px-4 py-8">
+    <!-- Tabs, tablas y botones como en tu original -->
+    <!-- ... -->
+  </div>
+  
+  <script>
+    const days = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+    const state = {
+      plan: {
+        rates: [95,96,94,97,95,93,98],
+        horas: [690,695,685,700,705,680,690],
+        usd: []
+      },
+      actual: { horas: Array(7).fill(0), rates: Array(7).fill(0), usd: Array(7).fill(0) },
+      adjusted: { horas: Array(7).fill(0), rates: Array(7).fill(0), usd: Array(7).fill(0), trends: Array(7).fill(0) }
+    };
+
+    function calcUSD(rate, horas) { return +(rate/100 * horas).toFixed(2); }
+    function calcRate(usd, horas) { return horas ? +(usd/horas*100).toFixed(2) : 0; }
+
+    function initPlanUSD(){
+      state.plan.usd = state.plan.rates.map((r,i)=> calcUSD(r, state.plan.horas[i]));
+    }
+
+    function sum(arr){ return arr.reduce((a,b)=> a + +b,0); }
+
+    function updateTable(section){
+      const s = state[section];
+      ['Rate','Horas','USD'].forEach((m,mi) => {
+        s[m.toLowerCase().split('')[0]!=='u' ?
+          s[m=== 'Rate' ? 'rates' : m.toLowerCase()].forEach((v,i)=>
+            document.getElementById(`${section}${m}_${i}`).innerText =
+              m==='Rate' ? v + '%' : v
+          )
+          : s.usd.forEach((v,i)=>
+            document.getElementById(`${section}${m}_${i}`).innerText = v ? v.toFixed(2) : '-'
+          )
+        );
+      });
+      const totalHoras = sum(s.horas),
+            totalUSD = +sum(s.usd).toFixed(2),
+            totalRate = totalHoras ? +(totalUSD/totalHoras*100).toFixed(1) + '%' : '-';
+      document.getElementById(`${section}HorasTotal`).innerText = totalHoras;
+      document.getElementById(`${section}USDTotal`).innerText = totalUSD.toFixed(2);
+      document.getElementById(`${section}RateTotal`).innerText = totalRate;
+    }
+
+    function updateCharts(){
+      planChart.data.datasets[0].data = state.plan.horas;
+      planChart.data.datasets[1].data = state.plan.usd;
+      planChart.update();
+
+      actualChart.data.datasets[0].data = state.actual.horas;
+      actualChart.data.datasets[1].data = state.actual.usd;
+      actualChart.update();
+
+      state.adjusted.trends = state.actual.horas.map((h,i) => {
+        if(!h) return 0;
+        state.adjusted.usd[i] = state.plan.usd[i];
+        state.adjusted.horas[i] = h;
+        return state.adjusted.rates[i] = calcRate(state.adjusted.usd[i],h) - state.plan.rates[i];
+      });
+
+      adjustedChart.data.datasets[0].data = state.adjusted.horas;
+      adjustedChart.data.datasets[1].data = state.adjusted.usd;
+      adjustedChart.data.datasets[2].data = state.plan.rates;
+      adjustedChart.update();
+
+      updateTable('adjusted');
+    }
+
+    function generateRandom(){
+      state.plan.rates = state.plan.rates.map(_ => Math.floor(Math.random()*6)+93);
+      state.plan.horas = state.plan.horas.map(_ => Math.floor(Math.random()*31)+680);
+      initPlanUSD();
+      updateTable('plan');
+      updateCharts();
+    }
+
+    function clearActual(){
+      state.actual = { horas: Array(7).fill(0), rates: Array(7).fill(0), usd: Array(7).fill(0) };
+      updateTable('actual');
+      updateCharts();
+      document.querySelectorAll('[id^="actualHoras_"]').forEach(i=>i.value='');
+    }
+
+    function resetAll(){
+      state.plan = { rates:[95,96,94,97,95,93,98], horas:[690,695,685,700,705,680,690], usd: [] };
+      initPlanUSD();
+      updateTable('plan');
+      clearActual();
+    }
+
+    function switchTab(tab){
+      document.querySelectorAll('.tab-content').forEach(c=>c.classList.add('hidden'));
+      document.getElementById(tab+'Tab').classList.remove('hidden');
+      document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tab));
+      setTimeout(updateCharts,50);
+    }
+
+    let planChart, actualChart, adjustedChart;
+    function initCharts(){
+      const opts = { responsive:true, interaction:{mode:'index',intersect:false}, scales:{ y:{beginAtZero:true}, y1:{position:'right',beginAtZero:true} } };
+      const ctx = id => document.getElementById(id).getContext('2d');
+      planChart = new Chart(ctx('planChart'), { type:'bar',
+        data:{ labels:days, datasets:[
+          { label:'Horas', data:state.plan.horas, backgroundColor:'rgba(59,130,246,0.7)' },
+          { label:'USD', data:state.plan.usd, type:'line', yAxisID:'y1' }
+        ] },
+        options:opts
+      });
+      actualChart = new Chart(ctx('actualChart'), { type:'bar',
+        data:{ labels:days, datasets:[
+          { label:'Horas', data:state.actual.horas, backgroundColor:'rgba(239,68,68,0.7)' },
+          { label:'USD', data:state.actual.usd, type:'line', yAxisID:'y1' }
+        ] },
+        options:opts
+      });
+      adjustedChart = new Chart(ctx('adjustedChart'), { type:'bar',
+        data:{ labels:days, datasets:[
+          { label:'Horas', data:state.adjusted.horas, backgroundColor:'rgba(16,185,129,0.7)' },
+          { label:'USD', data:state.adjusted.usd, type:'line', yAxisID:'y1' },
+          { label:'Rate Plan', data:state.plan.rates, type:'line', borderDash:[5,5], hidden:true }
+        ] },
+        options:opts
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded',()=>{
+      initPlanUSD();
+      initCharts();
+      updateTable('plan');
+      document.getElementById('randomizePlan').onclick = generateRandom;
+      document.getElementById('clearActual').onclick = clearActual;
+      document.getElementById('resetBtn').onclick = resetAll;
+      document.querySelectorAll('[id^="actualHoras_"]').forEach((inp,i)=> inp.oninput = ()=>{
+        state.actual.horas[i] = +inp.value || 0;
+        if(state.actual.horas[i]){
+          state.actual.rates[i] = state.plan.rates[i];
+          state.actual.usd[i] = calcUSD(state.actual.rates[i], state.actual.horas[i]);
+        } else {
+          state.actual.rates[i] = state.actual.usd[i] = 0;
+        }
+        updateTable('actual');
+        updateCharts();
+      });
+      document.querySelectorAll('.tab').forEach(t=>t.onclick = ()=>switchTab(t.dataset.tab));
+    });
+  </script>
+</body>
+</html>
