@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Producción Semanal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #bdbdbd;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .dashboard-card {
+            background-color: rgb(255, 255, 255);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        .table-header {
+            background-color: #9b2222;
+            color: white;
+            font-weight: 600;
+        }
+        input {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 6px;
+            width: 100%;
+            transition: border-color 0.2s;
+            text-align: center;
+        }
+        input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+        input:disabled {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+        .btn {
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .tab {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .tab.active {
+            border-bottom: 3px solid #bc2214;
+            color: #bc2214;
+            font-weight: 600;
+        }
+        .tab:hover:not(.active) {
+            border-bottom: 3px solid #ac7d7d;
+            color: #8c3737;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .day-cell {
+            min-width: 100px;
+        }
+        .chart-container {
+            position: relative;
+            height: 350px;
+            width: 100%;
+            margin: 20px 0;
+            border-radius: 8px;
+            background-color: #f8fafc;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+        }
+        .rate-label {
+            position: absolute;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .arrow-up {
+            color: #10b981;
+            margin-left: 4px;
+        }
+        .arrow-down {
+            color: #ef4444;
+            margin-left: 4px;
+        }
+        .trend-indicator {
+            display: inline-flex;
+            align-items: center;
+        }
+        .trend-value {
+            font-size: 10px;
+            margin-left: 2px;
+        }
+        select {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 8px;
+            background-color: white;
+            transition: all 0.2s;
+        }
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+        .editable {
+            background-color: #f0f9ff;
+            cursor: pointer;
+        }
+        .editable:hover {
+            background-color: #e0f2fe;
+        }
+        .no-data-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748b;
+            font-size: 1.1rem;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px dashed #cbd5e1;
+        }
+        .empty-value {
+            color: #94a3b8;
+        }
+        .locked {
+            background-color: #f1f5f9;
+            position: relative;
+        }
+        .locked::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            right: 5px;
+            transform: translateY(-50%);
+            font-size: 10px;
+            color: #64748b;
+        }
+        .adjustment-cell {
+            background-color: #ecfdf5;
+        }
+        .adjustment-cell.warning {
+            background-color: #fff7ed;
+        }
+        .adjustment-cell.danger {
+            background-color: #fef2f2;
+        }
+        .save-btn {
+            background-color: #10b981;
+            color: white;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .save-btn:hover {
+            background-color: #059669;
+        }
+        .save-btn:disabled {
+            background-color: #d1d5db;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Producción Semanal</h1>
+        
+        <!-- Filtros -->
+        <div class="dashboard-card p-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">Seleccionar Celda:</label>
+                    <select id="celdaFilter" class="w-full">
+                        <option value="">Todas las Celdas</option>
+                        <option value="4AM">4AM</option>
+                        <option value="2G">2G</option>
+                        <option value="1S">1S</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">Seleccionar Mes:</label>
+                    <select id="mesFilter" class="w-full">
+                        <option value="">Todos los Meses</option>
+                        <option value="1">Enero</option>
+                        <option value="2">Febrero</option>
+                        <option value="3">Marzo</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Mayo</option>
+                        <option value="6">Junio</option>
+                        <option value="7">Julio</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Septiembre</option>
+                        <option value="10">Octubre</option>
+                        <option value="11">Noviembre</option>
+                        <option value="12">Diciembre</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tabs para las tres tablas -->
+        <div class="flex justify-center mb-6 border-b border-gray-200">
+            <div class="tab active px-6 py-3" data-tab="plan">Plan de Producción</div>
+            <div class="tab px-6 py-3" data-tab="actual">Producción Actual</div>
+            <div class="tab px-6 py-3" data-tab="adjusted">Rates Ajustados</div>
+        </div>
+        
+        <!-- Contenido de las tabs -->
+        <div class="dashboard-card p-6 mb-8">
+            <!-- Tab 1: Plan de Producción -->
+            <div id="planTab" class="tab-content">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Plan de Producción Semanal</h2>
+                    <button id="randomizePlan" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow">
+                        Generar Plan Aleatorio
+                    </button>
+                </div>
+                
+                <div id="planTableContainer" class="table-responsive">
+                    <!-- Mensaje cuando no hay filtros seleccionados -->
+                    <div id="planNoDataMessage" class="no-data-message">
+                        <p>Por favor seleccione una celda o un mes para visualizar la información del plan de producción.</p>
+                    </div>
+                    
+                    <!-- Tabla que se mostrará cuando haya filtros -->
+                    <table id="planTable" class="min-w-full hidden">
+                        <thead>
+                            <tr>
+                                <th class="table-header px-4 py-3 text-left">Concepto</th>
+                                <!-- Las columnas se generarán dinámicamente -->
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="border px-4 py-3 font-semibold">Rate por Hora Vendida</td>
+                                <!-- Los datos se generarán dinámicamente -->
+                            </tr>
+                            <tr>
+                                <td class="border px-4 py-3 font-semibold">Horas Vendidas (Plan)</td>
+                                <!-- Los datos se generarán dinámicamente -->
+                            </tr>
+                            <tr>
+                                <td class="border px-4 py-3 font-semibold">USD (Límite Costos Operativos)</td>
+                                <!-- Los datos se generarán dinámicamente -->
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <!-- Gráfica para el plan -->
+                    <div id="planChartContainer" class="chart-container hidden mt-8">
+                        <canvas id="planChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab 2: Producción Actual -->
+            <div id="actualTab" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Producción Actual</h2>
+                    <div>
+                        <span id="statusMessage" class="mr-4 text-sm text-gray-600"></span>
+                        <button id="saveActual" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow">
+                            Guardar Datos
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="actualTableContainer" class="table-responsive">
+                    <!-- Mensaje cuando no hay filtros seleccionados -->
+                    <div id="actualNoDataMessage" class="no-data-message">
+                        <p>Por favor seleccione una celda o un mes para visualizar la información de producción actual.</p>
+                    </div>
+                    
+                    <!-- Tabla que se mostrará cuando haya filtros -->
+                    <table id="actualTable" class="min-w-full hidden">
+                        <thead>
+                            <tr>
+                                <th class="table-header px-4 py-3 text-left">Concepto</th>
+                                <!-- Las columnas se generarán dinámicamente -->
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="border px-4 py-3 font-semibold">Rate Real Calculado</td>
+                                <!-- Los datos se generarán dinámicamente -->
+                            </tr>
+                            <tr>
+                                <td class="border px-4 py-3 font-semibold">Horas Producidas (Real)</td>
+                                <!-- Los datos se generarán dinámicamente -->
+                            </tr>
+                            <tr>
+                                <td class="border px-4 py-3 font-semibold">USD (Gastos Reales)</td>
+                                <!-- Los datos se generarán dinámicamente -->
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <!-- Gráfica para producción actual -->
+                    <div id="actualChartContainer" class="chart-container hidden mt-8">
+                        <canvas id="actualChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab 3: Rates Ajustados -->
+            <div id="adjustedTab" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Rates Ajustados</h2>
+                </div>
+                
+                <div id="adjustedTableContainer" class="table-responsive">
+                    <!-- Mensaje cuando no hay filtros seleccionados -->
+                    <div id="adjustedNoDataMessage" class="no-data-message">
+                        <p>Por favor seleccione una celda o un mes para visualizar la información de rates ajustados.</p>
+                    </div>
+                    
+                    <!-- Tabla que se mostrará cuando haya filtros -->
+                    <table id="adjustedTable" class="min-w-full hidden">
+                        <thead>
+                            <tr>
+                                <th class="table-header px-4 py-3 text-left">Concepto</th>
+                                <!-- Las columnas se generarán dinámicamente -->
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Los datos se generarán dinámicamente -->
+                        </tbody>
+                    </table>
+                    
+                    <!-- Gráfica para rates ajustados -->
+                    <div id="adjustedChartContainer" class="chart-container hidden mt-8">
+                        <canvas id="adjustedChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Datos de configuración
+        const celdaRates = {
+            '4AM': 0.97,
+            '2G': 0.89,
+            '1S': 0.94
+        };
+        
+        // Rangos de horas vendidas por celda (por semana)
+        const celdaHorasRangos = {
+            '4AM': { min: 680, max: 710 },
+            '2G': { min: 450, max: 495 },
+            '1S': { min: 290, max: 330 }
+        };
+        
+        const semanasPorMes = {
+            '1': 4,  // Enero
+            '2': 4,  // Febrero
+            '3': 5,  // Marzo
+            '4': 4,  // Abril
+            '5': 4,  // Mayo
+            '6': 5,  // Junio
+            '7': 4,  // Julio
+            '8': 4,  // Agosto
+            '9': 5,  // Septiembre
+            '10': 4, // Octubre
+            '11': 4, // Noviembre
+            '12': 5  // Diciembre
+        };
+        
+        const nombresMeses = {
+            '1': 'Enero',
+            '2': 'Febrero',
+            '3': 'Marzo',
+            '4': 'Abril',
+            '5': 'Mayo',
+            '6': 'Junio',
+            '7': 'Julio',
+            '8': 'Agosto',
+            '9': 'Septiembre',
+            '10': 'Octubre',
+            '11': 'Noviembre',
+            '12': 'Diciembre'
+        };
+        
+        // Variables para gráficos
+        let planChart = null;
+        let actualChart = null;
+        let adjustedChart = null;
+        
+        // Datos de la aplicación
+        let currentCelda = '';
+        let currentMes = '';
+        let planData = {};
+        let actualData = {};
+        let adjustedData = {};
+        let lockedWeeks = {}; // Para rastrear qué semanas están bloqueadas
+        
+        // Inicializar datos
+        function initializeData() {
+            // Crear estructura de datos para todas las celdas y meses
+            Object.keys(celdaRates).forEach(celda => {
+                planData[celda] = {};
+                actualData[celda] = {};
+                adjustedData[celda] = {};
+                lockedWeeks[celda] = {};
+                
+                for (let mes = 1; mes <= 12; mes++) {
+                    const numSemanas = semanasPorMes[mes.toString()];
+                    planData[celda][mes] = {
+                        rate: celdaRates[celda],
+                        horas: Array(numSemanas).fill(0),
+                        usd: Array(numSemanas).fill(0),
+                        totalHoras: 0,
+                        totalUsd: 0
+                    };
+                    
+                    actualData[celda][mes] = {
+                        horas: Array(numSemanas).fill(0),
+                        usd: Array(numSemanas).fill(0),
+                        rate: Array(numSemanas).fill(0),
+                        totalHoras: 0,
+                        totalUsd: 0,
+                        avgRate: 0
+                    };
+                    
+                    adjustedData[celda][mes] = {
+                        horas: Array(numSemanas).fill(0),
+                        usd: Array(numSemanas).fill(0),
+                        rate: Array(numSemanas).fill(0)
+                    };
+                    
+                    lockedWeeks[celda][mes] = Array(numSemanas).fill(false);
+                }
+            });
+        }
+        
+        // Generar datos aleatorios para el plan
+        function generateRandomPlan() {
+            Object.keys(celdaRates).forEach(celda => {
+                for (let mes = 1; mes <= 12; mes++) {
+                    const numSemanas = semanasPorMes[mes.toString()];
+                    let totalHoras = 0;
+                    let totalUsd = 0;
+                    
+                    // Determinar el rango de horas para esta celda
+                    const rango = celdaHorasRangos[celda];
+                    
+                    // Generar horas para cada semana dentro del rango especificado
+                    for (let semana = 0; semana < numSemanas; semana++) {
+                        // Generar un valor aleatorio dentro del rango para cada semana
+                        const horas = Math.floor(Math.random() * (rango.max - rango.min + 1)) + rango.min;
+                        
+                        planData[celda][mes].horas[semana] = horas;
+                        totalHoras += horas;
+                        
+                        // Calcular USD basado en rate y horas
+                        const rate = celdaRates[celda];
+                        const usd = Math.round(rate * horas * 100) / 100;
+                        planData[celda][mes].usd[semana] = usd;
+                        totalUsd += usd;
+                    }
+                    
+                    // Guardar totales mensuales
+                    planData[celda][mes].totalHoras = totalHoras;
+                    planData[celda][mes].totalUsd = Math.round(totalUsd * 100) / 100;
+                }
+            });
+            
+            // Reiniciar los datos de producción actual y semanas bloqueadas
+            Object.keys(celdaRates).forEach(celda => {
+                for (let mes = 1; mes <= 12; mes++) {
+                    const numSemanas = semanasPorMes[mes.toString()];
+                    
+                    actualData[celda][mes] = {
+                        horas: Array(numSemanas).fill(0),
+                        usd: Array(numSemanas).fill(0),
+                        rate: Array(numSemanas).fill(0),
+                        totalHoras: 0,
+                        totalUsd: 0,
+                        avgRate: 0
+                    };
+                    
+                    adjustedData[celda][mes] = {
+                        horas: Array(numSemanas).fill(0),
+                        usd: Array(numSemanas).fill(0),
+                        rate: Array(numSemanas).fill(0)
+                    };
+                    
+                    lockedWeeks[celda][mes] = Array(numSemanas).fill(false);
+                }
+            });
+            
+            updateTables();
+        }
+        
+        // Verificar si hay filtros seleccionados
+        function hasFilters() {
+            return currentCelda !== '' || currentMes !== '';
+        }
+        
+        // Actualizar tablas basado en filtros
+        function updateTables() {
+            updatePlanTable();
+            updateActualTable();
+            updateAdjustedTable();
+        }
+        
+        // Actualizar tabla de plan
+        function updatePlanTable() {
+            const table = document.getElementById('planTable');
+            const noDataMessage = document.getElementById('planNoDataMessage');
+            const chartContainer = document.getElementById('planChartContainer');
+            
+            // Mostrar mensaje o tabla según si hay filtros
+            if (!hasFilters()) {
+                table.classList.add('hidden');
+                chartContainer.classList.add('hidden');
+                noDataMessage.classList.remove('hidden');
+                return;
+            } else {
+                table.classList.remove('hidden');
+                chartContainer.classList.remove('hidden');
+                noDataMessage.classList.add('hidden');
+            }
+            
+            const thead = table.querySelector('thead tr');
+            const tbody = table.querySelector('tbody');
+            
+            // Limpiar encabezados existentes excepto el primero
+            while (thead.children.length > 1) {
+                thead.removeChild(thead.lastChild);
+            }
+            
+            // Determinar qué columnas mostrar
+            let columnas = [];
+            
+            if (currentMes) {
+                // Si hay un mes seleccionado, mostrar las semanas de ese mes
+                const numSemanas = semanasPorMes[currentMes];
+                for (let i = 1; i <= numSemanas; i++) {
+                    columnas.push({
+                        label: `Semana ${i}`,
+                        tipo: 'semana',
+                        mes: currentMes,
+                        semana: i - 1
+                    });
+                }
+            } else {
+                // Si no hay mes seleccionado pero sí hay celda, mostrar todos los meses
+                for (let mes = 1; mes <= 12; mes++) {
+                    columnas.push({
+                        label: nombresMeses[mes],
+                        tipo: 'mes',
+                        mes: mes
+                    });
+                }
+            }
+            
+            // Agregar encabezados
+            columnas.forEach(columna => {
+                const th = document.createElement('th');
+                th.className = 'table-header px-4 py-3 text-center';
+                th.textContent = columna.label;
+                thead.appendChild(th);
+            });
+            
+            // Limpiar filas existentes
+            while (tbody.firstChild) {
+                tbody.removeChild(tbody.firstChild);
+            }
+            
+            // Crear filas
+            const rows = [
+                { label: 'Rate por Hora Vendida', key: 'rate' },
+                { label: 'Horas Vendidas (Plan)', key: 'horas' },
+                { label: 'USD (Límite Costos Operativos)', key: 'usd' }
+            ];
+            
+            rows.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                // Agregar celda de etiqueta
+                const labelCell = document.createElement('td');
+                labelCell.className = 'border px-4 py-3 font-semibold';
+                labelCell.textContent = row.label;
+                tr.appendChild(labelCell);
+                
+                // Agregar celdas de datos
+                columnas.forEach(columna => {
+                    const dataCell = document.createElement('td');
+                    dataCell.className = 'border px-4 py-3 text-center';
+                    
+                    // Determinar qué celda mostrar
+                    const celda = currentCelda || '4AM';
+                    
+                    if (columna.tipo === 'mes') {
+                        // Mostrar datos mensuales
+                        if (row.key === 'rate') {
+                            dataCell.textContent = celdaRates[celda];
+                        } else if (row.key === 'horas') {
+                            dataCell.textContent = planData[celda][columna.mes].totalHoras;
+                        } else if (row.key === 'usd') {
+                            dataCell.textContent = planData[celda][columna.mes].totalUsd;
+                        }
+                    } else if (columna.tipo === 'semana') {
+                        // Mostrar datos semanales
+                        if (row.key === 'rate') {
+                            dataCell.textContent = celdaRates[celda];
+                        } else {
+                            dataCell.textContent = planData[celda][columna.mes][row.key][columna.semana];
+                        }
+                    }
+                    
+                    tr.appendChild(dataCell);
+                });
+                
+                tbody.appendChild(tr);
+            });
+            
+            // Actualizar gráfico
+            updatePlanChart(columnas);
+        }
+        
+        // Actualizar tabla de producción actual
+        function updateActualTable() {
+            const table = document.getElementById('actualTable');
+            const noDataMessage = document.getElementById('actualNoDataMessage');
+            const chartContainer = document.getElementById('actualChartContainer');
+            
+            // Mostrar mensaje o tabla según si hay filtros
+            if (!hasFilters()) {
+                table.classList.add('hidden');
+                chartContainer.classList.add('hidden');
+                noDataMessage.classList.remove('hidden');
+                return;
+            } else {
+                table.classList.remove('hidden');
+                chartContainer.classList.remove('hidden');
+                noDataMessage.classList.add('hidden');
+            }
+            
+            const thead = table.querySelector('thead tr');
+            const tbody = table.querySelector('tbody');
+            
+            // Limpiar encabezados existentes excepto el primero
+            while (thead.children.length > 1) {
+                thead.removeChild(thead.lastChild);
+            }
+            
+            // Determinar qué columnas mostrar (igual que en updatePlanTable)
+            let columnas = [];
+            
+            if (currentMes) {
+                // Si hay un mes seleccionado, mostrar las semanas de ese mes
+                const numSemanas = semanasPorMes[currentMes];
+                for (let i = 1; i <= numSemanas; i++) {
+                    columnas.push({
+                        label: `Semana ${i}`,
+                        tipo: 'semana',
+                        mes: currentMes,
+                        semana: i - 1
+                    });
+                }
+            } else {
+                // Si no hay mes seleccionado pero sí hay celda, mostrar todos los meses
+                for (let mes = 1; mes <= 12; mes++) {
+                    columnas.push({
+                        label: nombresMeses[mes],
+                        tipo: 'mes',
+                        mes: mes
+                    });
+                }
+            }
+            
+            // Agregar encabezados
+            columnas.forEach(columna => {
+                const th = document.createElement('th');
+                th.className = 'table-header px-4 py-3 text-center';
+                th.textContent = columna.label;
+                thead.appendChild(th);
+            });
+            
+            // Limpiar filas existentes
+            while (tbody.firstChild) {
+                tbody.removeChild(tbody.firstChild);
+            }
+            
+            // Crear filas - Nota: Cambiado el orden según lo solicitado
+            const rows = [
+                { label: 'Rate Real Calculado', key: 'rate', editable: false },
+                { label: 'Horas Producidas (Real)', key: 'horas', editable: true },
+                { label: 'USD (Gastos Reales)', key: 'usd', editable: true }
+            ];
+            
+            rows.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                // Agregar celda de etiqueta
+                const labelCell = document.createElement('td');
+                labelCell.className = 'border px-4 py-3 font-semibold';
+                labelCell.textContent = row.label;
+                tr.appendChild(labelCell);
+                
+                // Agregar celdas de datos
+                columnas.forEach(columna => {
+                    const dataCell = document.createElement('td');
+                    
+                    // Determinar qué celda mostrar
+                    const celda = currentCelda || '4AM';
+                    
+                    if (columna.tipo === 'mes') {
+                        // Mostrar datos mensuales
+                        if (row.editable) {
+                            dataCell.className = 'border px-4 py-3 text-center';
+                            
+                            // Para los meses, mostramos el total pero no es editable directamente
+                            if (row.key === 'horas') {
+                                // Calcular total de horas del mes
+                                let totalHoras = 0;
+                                actualData[celda][columna.mes].horas.forEach(h => totalHoras += h);
+                                dataCell.textContent = totalHoras || '—';
+                            } else if (row.key === 'usd') {
+                                // Calcular total de USD del mes
+                                let totalUsd = 0;
+                                actualData[celda][columna.mes].usd.forEach(u => totalUsd += u);
+                                dataCell.textContent = totalUsd ? Math.round(totalUsd * 100) / 100 : '—';
+                            }
+                        } else {
+                            // Para la fila de rate calculado
+                            dataCell.className = 'border px-4 py-3 text-center';
+                            
+                            // Calcular rate promedio del mes
+                            let totalHoras = 0;
+                            let totalUsd = 0;
+                            actualData[celda][columna.mes].horas.forEach(h => totalHoras += h);
+                            actualData[celda][columna.mes].usd.forEach(u => totalUsd += u);
+                            
+                            const avgRate = totalHoras > 0 ? Math.round((totalUsd / totalHoras) * 100) / 100 : 0;
+                            dataCell.textContent = avgRate || '—';
+                            
+                            // Si el valor es cero, aplicar estilo para valores vacíos
+                            if (!avgRate) {
+                                dataCell.classList.add('empty-value');
+                            }
+                        }
+                    } else if (columna.tipo === 'semana') {
+                        // Mostrar datos semanales
+                        if (row.editable) {
+                            // Verificar si esta semana está bloqueada
+                            const isLocked = lockedWeeks[celda][columna.mes][columna.semana];
+                            
+                            if (isLocked) {
+                                dataCell.className = 'border px-4 py-3 text-center locked';
+                                const value = actualData[celda][columna.mes][row.key][columna.semana];
+                                dataCell.textContent = value || '—';
+                            } else {
+                                dataCell.className = 'border px-4 py-3 text-center editable';
+                                
+                                // Crear input para celdas editables
+                                const input = document.createElement('input');
+                                input.type = 'text'; // Cambiado a text para permitir guiones
+                                input.value = actualData[celda][columna.mes][row.key][columna.semana] || '';
+                                input.placeholder = '—';
+                                
+                                // Guardar índices para saber qué dato actualizar
+                                input.dataset.celda = celda;
+                                input.dataset.mes = columna.mes;
+                                input.dataset.semana = columna.semana;
+                                input.dataset.key = row.key;
+                                
+                                // Evento para actualizar datos y recalcular rate
+                                input.addEventListener('change', function() {
+                                    const celda = this.dataset.celda;
+                                    const mes = this.dataset.mes;
+                                    const semana = parseInt(this.dataset.semana);
+                                    const key = this.dataset.key;
+                                    
+                                    // Verificar si el valor es un guión o está vacío
+                                    if (this.value === '—' || this.value === '' || isNaN(parseFloat(this.value))) {
+                                        actualData[celda][mes][key][semana] = 0;
+                                    } else {
+                                        actualData[celda][mes][key][semana] = parseFloat(this.value);
+                                    }
+                                    
+                                    // Recalcular rate para esta semana
+                                    const horas = actualData[celda][mes].horas[semana];
+                                    const usd = actualData[celda][mes].usd[semana];
+                                    
+                                    if (horas > 0) {
+                                        actualData[celda][mes].rate[semana] = Math.round((usd / horas) * 100) / 100;
+                                    } else {
+                                        actualData[celda][mes].rate[semana] = 0;
+                                    }
+                                    
+                                    // Actualizar la tabla y el gráfico
+                                    updateActualTable();
+                                    
+                                    // Calcular ajustes si hay datos
+                                    if (horas > 0 && usd > 0) {
+                                        calculateAdjustments(celda, mes);
+                                        updateAdjustedTable();
+                                    }
+                                });
+                                
+                                dataCell.innerHTML = ''; // Limpiar el contenido
+                                dataCell.appendChild(input);
+                            }
+                        } else {
+                            // Para la fila de rate calculado (no editable)
+                            dataCell.className = 'border px-4 py-3 text-center';
+                            const rateValue = actualData[celda][columna.mes][row.key][columna.semana];
+                            dataCell.textContent = rateValue || '—';
+                            
+                            // Si el valor es cero, aplicar estilo para valores vacíos
+                            if (!rateValue) {
+                                dataCell.classList.add('empty-value');
+                            }
+                        }
+                    }
+                    
+                    tr.appendChild(dataCell);
+                });
+                
+                tbody.appendChild(tr);
+            });
+            
+            // Actualizar gráfico
+            updateActualChart(columnas);
+        }
+        
+        // Guardar datos de la semana actual y bloquear inputs
+        function saveActualData() {
+            if (!currentCelda || !currentMes) {
+                alert('Por favor seleccione una celda y un mes para guardar datos.');
+                return;
+            }
+            
+            const celda = currentCelda;
+            const mes = currentMes;
+            
+            // Encontrar la primera semana no bloqueada
+            const numSemanas = semanasPorMes[mes];
+            let semanaActual = -1;
+            
+            for (let i = 0; i < numSemanas; i++) {
+                if (!lockedWeeks[celda][mes][i]) {
+                    semanaActual = i;
+                    break;
+                }
+            }
+            
+            if (semanaActual === -1) {
+                document.getElementById('statusMessage').textContent = 'Todas las semanas ya están guardadas.';
+                return;
+            }
+            
+            // Verificar que haya datos para guardar
+            const horas = actualData[celda][mes].horas[semanaActual];
+            const usd = actualData[celda][mes].usd[semanaActual];
+            
+            if (!horas || !usd) {
+                document.getElementById('statusMessage').textContent = 'Por favor ingrese horas y USD antes de guardar.';
+                return;
+            }
+            
+            // Bloquear la semana
+            lockedWeeks[celda][mes][semanaActual] = true;
+            
+            // Calcular ajustes para las semanas restantes
+            calculateAdjustments(celda, mes);
+            
+            // Actualizar tablas
+            updateActualTable();
+            updateAdjustedTable();
+            
+            // Mostrar mensaje de éxito
+            document.getElementById('statusMessage').textContent = `Semana ${semanaActual + 1} guardada correctamente.`;
+            
+            // Verificar si todas las semanas están bloqueadas
+            let todasBloqueadas = true;
+            for (let i = 0; i < numSemanas; i++) {
+                if (!lockedWeeks[celda][mes][i]) {
+                    todasBloqueadas = false;
+                    break;
+                }
+            }
+            
+            if (todasBloqueadas) {
+                document.getElementById('statusMessage').textContent = 'Todas las semanas del mes están guardadas.';
+            }
+        }
+        
+        // Calcular ajustes para las semanas restantes
+        function calculateAdjustments(celda, mes) {
+            const numSemanas = semanasPorMes[mes];
+            
+            // Calcular total de USD y horas del plan
+            const totalUsdPlan = planData[celda][mes].totalUsd;
+            const totalHorasPlan = planData[celda][mes].totalHoras;
+            
+            // Calcular USD y horas ya utilizados
+            let usdUtilizado = 0;
+            let horasUtilizadas = 0;
+            
+            for (let i = 0; i < numSemanas; i++) {
+                if (lockedWeeks[celda][mes][i]) {
+                    usdUtilizado += actualData[celda][mes].usd[i];
+                    horasUtilizadas += actualData[celda][mes].horas[i];
+                }
+            }
+            
+            // Calcular USD y horas restantes
+            const usdRestante = totalUsdPlan - usdUtilizado;
+            const horasRestantes = totalHorasPlan - horasUtilizadas;
+            
+            // Contar semanas no bloqueadas
+            let semanasRestantes = 0;
+            for (let i = 0; i < numSemanas; i++) {
+                if (!lockedWeeks[celda][mes][i]) {
+                    semanasRestantes++;
+                }
+            }
+            
+            if (semanasRestantes === 0) return; // No hay semanas para ajustar
+            
+            // Distribuir USD y horas restantes entre las semanas no bloqueadas
+            const usdPorSemana = usdRestante / semanasRestantes;
+            const horasPorSemana = horasRestantes / semanasRestantes;
+            
+            // Calcular rate ajustado
+            const rateAjustado = usdPorSemana / horasPorSemana;
+            
+            // Asignar valores ajustados a las semanas no bloqueadas
+            for (let i = 0; i < numSemanas; i++) {
+                if (!lockedWeeks[celda][mes][i]) {
+                    adjustedData[celda][mes].usd[i] = Math.round(usdPorSemana * 100) / 100;
+                    adjustedData[celda][mes].horas[i] = Math.round(horasPorSemana);
+                    adjustedData[celda][mes].rate[i] = Math.round(rateAjustado * 100) / 100;
+                } else {
+                    // Para semanas bloqueadas, usar datos reales
+                    adjustedData[celda][mes].usd[i] = actualData[celda][mes].usd[i];
+                    adjustedData[celda][mes].horas[i] = actualData[celda][mes].horas[i];
+                    adjustedData[celda][mes].rate[i] = actualData[celda][mes].rate[i];
+                }
+            }
+        }
+        
+        // Actualizar tabla de rates ajustados
+        function updateAdjustedTable() {
+            const table = document.getElementById('adjustedTable');
+            const noDataMessage = document.getElementById('adjustedNoDataMessage');
+            const chartContainer = document.getElementById('adjustedChartContainer');
+            
+            // Mostrar mensaje o tabla según si hay filtros
+            if (!hasFilters()) {
+                table.classList.add('hidden');
+                chartContainer.classList.add('hidden');
+                noDataMessage.classList.remove('hidden');
+                return;
+            } else {
+                table.classList.remove('hidden');
+                chartContainer.classList.remove('hidden');
+                noDataMessage.classList.add('hidden');
+            }
+            
+            const thead = table.querySelector('thead tr');
+            const tbody = table.querySelector('tbody');
+            
+            // Limpiar encabezados existentes excepto el primero
+            while (thead.children.length > 1) {
+                thead.removeChild(thead.lastChild);
+            }
+            
+            // Determinar qué columnas mostrar
+            let columnas = [];
+            
+            if (currentMes) {
+                // Si hay un mes seleccionado, mostrar las semanas de ese mes
+                const numSemanas = semanasPorMes[currentMes];
+                for (let i = 1; i <= numSemanas; i++) {
+                    columnas.push({
+                        label: `Semana ${i}`,
+                        tipo: 'semana',
+                        mes: currentMes,
+                        semana: i - 1
+                    });
+                }
+            } else {
+                // Si no hay mes seleccionado pero sí hay celda, mostrar todos los meses
+                for (let mes = 1; mes <= 12; mes++) {
+                    columnas.push({
+                        label: nombresMeses[mes],
+                        tipo: 'mes',
+                        mes: mes
+                    });
+                }
+            }
+            
+            // Agregar encabezados
+            columnas.forEach(columna => {
+                const th = document.createElement('th');
+                th.className = 'table-header px-4 py-3 text-center';
+                th.textContent = columna.label;
+                thead.appendChild(th);
+            });
+            
+            // Limpiar filas existentes
+            while (tbody.firstChild) {
+                tbody.removeChild(tbody.firstChild);
+            }
+            
+            // Crear filas para la tabla de ajustes
+            const rows = [
+                { label: 'Rate Ajustado', key: 'rate' },
+                { label: 'Horas Ajustadas', key: 'horas' },
+                { label: 'USD Ajustado', key: 'usd' },
+                { label: 'Estado', key: 'estado' }
+            ];
+            
+            const celda = currentCelda || '4AM';
+            const mes = currentMes || '1';
+            
+            rows.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                // Agregar celda de etiqueta
+                const labelCell = document.createElement('td');
+                labelCell.className = 'border px-4 py-3 font-semibold';
+                labelCell.textContent = row.label;
+                tr.appendChild(labelCell);
+                
+                // Agregar celdas de datos
+                columnas.forEach(columna => {
+                    const dataCell = document.createElement('td');
+                    dataCell.className = 'border px-4 py-3 text-center';
+                    
+                    if (columna.tipo === 'mes') {
+                        // Para vista mensual
+                        if (row.key === 'estado') {
+                            dataCell.textContent = 'N/A';
+                        } else {
+                            dataCell.textContent = '—';
+                        }
+                    } else if (columna.tipo === 'semana') {
+                        // Para vista semanal
+                        const semana = columna.semana;
+                        
+                        if (row.key === 'estado') {
+                            // Determinar estado de la semana
+                            if (lockedWeeks[celda][mes][semana]) {
+                                dataCell.textContent = 'Completado';
+                                dataCell.classList.add('bg-blue-100');
+                            } else {
+                                // Verificar si hay ajustes calculados
+                                if (adjustedData[celda][mes].horas[semana] > 0) {
+                                    // Comparar rate ajustado con rate del plan
+                                    const rateAjustado = adjustedData[celda][mes].rate[semana];
+                                    const ratePlan = celdaRates[celda];
+                                    
+                                    if (rateAjustado <= ratePlan * 1.05) {
+                                        dataCell.textContent = 'Óptimo';
+                                        dataCell.classList.add('bg-green-100');
+                                    } else if (rateAjustado <= ratePlan * 1.15) {
+                                        dataCell.textContent = 'Atención';
+                                        dataCell.classList.add('bg-yellow-100');
+                                    } else {
+                                        dataCell.textContent = 'Crítico';
+                                        dataCell.classList.add('bg-red-100');
+                                    }
+                                } else {
+                                    dataCell.textContent = 'Pendiente';
+                                    dataCell.classList.add('bg-gray-100');
+                                }
+                            }
+                        } else {
+                            // Mostrar datos de ajuste
+                            const value = adjustedData[celda][mes][row.key][semana];
+                            
+                            if (value) {
+                                if (row.key === 'usd' || row.key === 'rate') {
+                                    dataCell.textContent = Math.round(value * 100) / 100;
+                                } else {
+                                    dataCell.textContent = Math.round(value);
+                                }
+                                
+                                // Aplicar estilo según si está bloqueado o no
+                                if (lockedWeeks[celda][mes][semana]) {
+                                    dataCell.classList.add('locked');
+                                } else {
+                                    dataCell.classList.add('adjustment-cell');
+                                    
+                                    // Comparar con el plan para determinar el estilo
+                                    if (row.key === 'rate') {
+                                        const ratePlan = celdaRates[celda];
+                                        if (value > ratePlan * 1.15) {
+                                            dataCell.classList.add('danger');
+                                        } else if (value > ratePlan * 1.05) {
+                                            dataCell.classList.add('warning');
+                                        }
+                                    }
+                                }
+                            } else {
+                                dataCell.textContent = '—';
+                            }
+                        }
+                    }
+                    
+                    tr.appendChild(dataCell);
+                });
+                
+                tbody.appendChild(tr);
+            });
+            
+            // Agregar fila de información de límites
+            const infoRow = document.createElement('tr');
+            const infoLabelCell = document.createElement('td');
+            infoLabelCell.className = 'border px-4 py-3 font-semibold';
+            infoLabelCell.textContent = 'Límites Restantes';
+            infoRow.appendChild(infoLabelCell);
+            
+            columnas.forEach(columna => {
+                const infoCell = document.createElement('td');
+                infoCell.className = 'border px-4 py-3 text-center';
+                
+                if (columna.tipo === 'semana') {
+                    // Calcular límites restantes
+                    const totalUsdPlan = planData[celda][mes].totalUsd;
+                    let usdUtilizado = 0;
+                    
+                    for (let i = 0; i <= columna.semana; i++) {
+                        if (lockedWeeks[celda][mes][i]) {
+                            usdUtilizado += actualData[celda][mes].usd[i];
+                        } else if (i < columna.semana) {
+                            // Para semanas futuras no bloqueadas, usar ajustes
+                            usdUtilizado += adjustedData[celda][mes].usd[i] || 0;
+                        }
+                    }
+                    
+                    const usdRestante = totalUsdPlan - usdUtilizado;
+                    
+                    if (lockedWeeks[celda][mes][columna.semana]) {
+                        infoCell.textContent = `$${Math.round(usdRestante * 100) / 100}`;
+                    } else {
+                        infoCell.textContent = `$${Math.round(usdRestante * 100) / 100}`;
+                        
+                        // Aplicar estilo según el porcentaje restante
+                        const porcentajeRestante = (usdRestante / totalUsdPlan) * 100;
+                        
+                        if (porcentajeRestante < 15) {
+                            infoCell.classList.add('bg-red-100');
+                        } else if (porcentajeRestante < 30) {
+                            infoCell.classList.add('bg-yellow-100');
+                        } else {
+                            infoCell.classList.add('bg-green-100');
+                        }
+                    }
+                } else {
+                    infoCell.textContent = 'N/A';
+                }
+                
+                infoRow.appendChild(infoCell);
+            });
+            
+            tbody.appendChild(infoRow);
+            
+            // Actualizar gráfico
+            updateAdjustedChart(columnas);
+        }
+        
+        // Actualizar gráfico del plan
+        function updatePlanChart(columnas) {
+            const ctx = document.getElementById('planChart').getContext('2d');
+            
+            // Destruir gráfico anterior si existe
+            if (planChart) {
+                planChart.destroy();
+            }
+            
+            // Preparar datos para el gráfico
+            const labels = columnas.map(col => col.label);
+            const celda = currentCelda || '4AM';
+            const rate = celdaRates[celda];
+            
+            // Datos de horas y USD
+            const horasData = [];
+            const usdData = [];
+            
+            columnas.forEach(col => {
+                if (col.tipo === 'mes') {
+                    horasData.push(planData[celda][col.mes].totalHoras);
+                    usdData.push(planData[celda][col.mes].totalUsd);
+                } else if (col.tipo === 'semana') {
+                    horasData.push(planData[celda][col.mes].horas[col.semana]);
+                    usdData.push(planData[celda][col.mes].usd[col.semana]);
+                }
+            });
+            
+            // Crear gráfico
+            planChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Horas Vendidas (Plan)',
+                            data: horasData,
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1,
+                            barPercentage: 0.6,
+                            order: 2
+                        },
+                        {
+                            label: 'USD (Límite Costos)',
+                            data: usdData,
+                            type: 'line',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointBackgroundColor: 'rgba(16, 185, 129, 1)',
+                            fill: false,
+                            tension: 0.4,
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                afterBody: function(tooltipItems) {
+                                    return `Rate: ${rate}`;
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: `Plan de Producción - ${currentCelda || 'Todas las Celdas'} - ${currentMes ? nombresMeses[currentMes] : 'Todos los Meses'}`
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Horas'
+                            }
+                        },
+                        y1: {
+                            position: 'right',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'USD'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Actualizar gráfico de producción actual
+        function updateActualChart(columnas) {
+            const ctx = document.getElementById('actualChart').getContext('2d');
+            
+            // Destruir gráfico anterior si existe
+            if (actualChart) {
+                actualChart.destroy();
+            }
+            
+            // Preparar datos para el gráfico
+            const labels = columnas.map(col => col.label);
+            const celda = currentCelda || '4AM';
+            
+            // Datos de horas, USD y rates
+            const horasData = [];
+            const usdData = [];
+            const rateData = [];
+            
+            columnas.forEach(col => {
+                if (col.tipo === 'mes') {
+                    let totalHoras = 0;
+                    let totalUsd = 0;
+                    actualData[celda][col.mes].horas.forEach(h => totalHoras += h);
+                    actualData[celda][col.mes].usd.forEach(u => totalUsd += u);
+                    
+                    horasData.push(totalHoras);
+                    usdData.push(totalUsd);
+                    
+                    const avgRate = totalHoras > 0 ? Math.round((totalUsd / totalHoras) * 100) / 100 : 0;
+                    rateData.push(avgRate);
+                } else if (col.tipo === 'semana') {
+                    horasData.push(actualData[celda][col.mes].horas[col.semana]);
+                    usdData.push(actualData[celda][col.mes].usd[col.semana]);
+                    rateData.push(actualData[celda][col.mes].rate[col.semana]);
+                }
+            });
+            
+            // Crear gráfico
+            actualChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Horas Producidas (Real)',
+                            data: horasData,
+                            backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                            borderColor: 'rgba(99, 102, 241, 1)',
+                            borderWidth: 1,
+                            barPercentage: 0.6,
+                            order: 2
+                        },
+                        {
+                            label: 'USD (Gastos Reales)',
+                            data: usdData,
+                            type: 'line',
+                            borderColor: 'rgba(239, 68, 68, 1)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointBackgroundColor: 'rgba(239, 68, 68, 1)',
+                            fill: false,
+                            tension: 0.4,
+                            yAxisID: 'y1',
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                afterBody: function(tooltipItems) {
+                                    const index = tooltipItems[0].dataIndex;
+                                    return `Rate Real: ${rateData[index] || '—'}`;
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: `Producción Actual - ${currentCelda || 'Todas las Celdas'} - ${currentMes ? nombresMeses[currentMes] : 'Todos los Meses'}`
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Horas'
+                            }
+                        },
+                        y1: {
+                            position: 'right',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'USD'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Actualizar gráfico de rates ajustados
+        function updateAdjustedChart(columnas) {
+            const ctx = document.getElementById('adjustedChart').getContext('2d');
+            
+            // Destruir gráfico anterior si existe
+            if (adjustedChart) {
+                adjustedChart.destroy();
+            }
+            
+            // Preparar datos para el gráfico
+            const labels = columnas.map(col => col.label);
+            const celda = currentCelda || '4AM';
+            const mes = currentMes || '1';
+            
+            // Datos para el gráfico
+            const planRateData = Array(labels.length).fill(celdaRates[celda]);
+            const actualRateData = [];
+            const adjustedRateData = [];
+            const planHorasData = [];
+            const actualHorasData = [];
+            const adjustedHorasData = [];
+            
+            columnas.forEach((col, index) => {
+                if (col.tipo === 'mes') {
+                    // Para vista mensual
+                    actualRateData.push(0);
+                    adjustedRateData.push(0);
+                    planHorasData.push(0);
+                    actualHorasData.push(0);
+                    adjustedHorasData.push(0);
+                } else if (col.tipo === 'semana') {
+                    // Para vista semanal
+                    const semana = col.semana;
+                    
+                    // Datos de rate
+                    actualRateData.push(actualData[celda][mes].rate[semana] || 0);
+                    adjustedRateData.push(adjustedData[celda][mes].rate[semana] || 0);
+                    
+                    // Datos de horas
+                    planHorasData.push(planData[celda][mes].horas[semana] || 0);
+                    actualHorasData.push(actualData[celda][mes].horas[semana] || 0);
+                    adjustedHorasData.push(adjustedData[celda][mes].horas[semana] || 0);
+                }
+            });
+            
+            // Crear gráfico
+            adjustedChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Rate Plan',
+                            data: planRateData,
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                            fill: false,
+                            tension: 0.1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Rate Real',
+                            data: actualRateData,
+                            borderColor: 'rgba(239, 68, 68, 1)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointBackgroundColor: 'rgba(239, 68, 68, 1)',
+                            fill: false,
+                            tension: 0.1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Rate Ajustado',
+                            data: adjustedRateData,
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 3,
+                            pointRadius: 5,
+                            pointBackgroundColor: 'rgba(16, 185, 129, 1)',
+                            fill: false,
+                            tension: 0.1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Horas Plan',
+                            data: planHorasData,
+                            type: 'bar',
+                            backgroundColor: 'rgba(59, 130, 246, 0.3)',
+                            borderColor: 'rgba(59, 130, 246, 0.7)',
+                            borderWidth: 1,
+                            yAxisID: 'y1',
+                            order: 4,
+                            hidden: true
+                        },
+                        {
+                            label: 'Horas Real',
+                            data: actualHorasData,
+                            type: 'bar',
+                            backgroundColor: 'rgba(239, 68, 68, 0.3)',
+                            borderColor: 'rgba(239, 68, 68, 0.7)',
+                            borderWidth: 1,
+                            yAxisID: 'y1',
+                            order: 5,
+                            hidden: true
+                        },
+                        {
+                            label: 'Horas Ajustadas',
+                            data: adjustedHorasData,
+                            type: 'bar',
+                            backgroundColor: 'rgba(16, 185, 129, 0.3)',
+                            borderColor: 'rgba(16, 185, 129, 0.7)',
+                            borderWidth: 1,
+                            yAxisID: 'y1',
+                            order: 6,
+                            hidden: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        legend: {
+                            position: 'top',
+                            onClick: function(e, legendItem, legend) {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                const meta = ci.getDatasetMeta(index);
+                                
+                                // Agrupar datasets por tipo (rate o horas)
+                                const isRateDataset = index <= 2;
+                                const isHorasDataset = index > 2;
+                                
+                                // Si es un dataset de rate y está oculto, mostrar todos los rates y ocultar horas
+                                if (isRateDataset && meta.hidden) {
+                                    for (let i = 0; i <= 2; i++) {
+                                        ci.getDatasetMeta(i).hidden = false;
+                                    }
+                                    for (let i = 3; i <= 5; i++) {
+                                        ci.getDatasetMeta(i).hidden = true;
+                                    }
+                                }
+                                // Si es un dataset de horas y está oculto, mostrar todos las horas y ocultar rates
+                                else if (isHorasDataset && meta.hidden) {
+                                    for (let i = 0; i <= 2; i++) {
+                                        ci.getDatasetMeta(i).hidden = true;
+                                    }
+                                    for (let i = 3; i <= 5; i++) {
+                                        ci.getDatasetMeta(i).hidden = false;
+                                    }
+                                }
+                                // Comportamiento normal para alternar visibilidad individual
+                                else {
+                                    meta.hidden = !meta.hidden;
+                                }
+                                
+                                ci.update();
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: `Rates Ajustados - ${currentCelda || 'Todas las Celdas'} - ${currentMes ? nombresMeses[currentMes] : 'Todos los Meses'}`
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Rate'
+                            },
+                            position: 'left'
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Horas'
+                            },
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Cambiar entre tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Desactivar todas las tabs
+                document.querySelectorAll('.tab').forEach(t => {
+                    t.classList.remove('active');
+                });
+                
+                // Activar la tab seleccionada
+                this.classList.add('active');
+                
+                // Ocultar todos los contenidos de tab
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.add('hidden');
+                });
+                
+                // Mostrar el contenido correspondiente
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(tabId + 'Tab').classList.remove('hidden');
+            });
+        });
+        
+        // Manejar cambios en filtros
+        document.getElementById('celdaFilter').addEventListener('change', function() {
+            currentCelda = this.value;
+            updateTables();
+        });
+        
+        document.getElementById('mesFilter').addEventListener('change', function() {
+            currentMes = this.value;
+            updateTables();
+        });
+        
+        // Generar plan aleatorio
+        document.getElementById('randomizePlan').addEventListener('click', generateRandomPlan);
+        
+        // Guardar datos actuales
+        document.getElementById('saveActual').addEventListener('click', saveActualData);
+        
+        // Inicializar la aplicación
+        initializeData();
+        generateRandomPlan();
+        updateTables();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'94f2f980e565521c',t:'MTc0OTgzMjI0OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
